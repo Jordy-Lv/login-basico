@@ -59,7 +59,7 @@ curl -u admin:admin123 http://localhost:8080/api/camiones
 | Registrar camiones                   |  Sí   |    No      |
 | Registrar conductores                |  Sí   |    No      |
 | Consultar camiones / conductores     |  Sí   |    Sí      |
-| Asociar conductor a camión           |  Sí   |    Sí      |
+| Asociar / desasociar conductor a camión |  Sí   |    Sí      |
 
 ## Endpoints implementados
 
@@ -101,6 +101,34 @@ Body de `POST`/`PUT`:
   "licencia": "C2-998877"
 }
 ```
+
+### Asociación Conductor ↔ Camión
+
+Un conductor está asociado a un solo camión a la vez (campo `conductor_id` en `camiones`). Si se
+asocia un conductor que ya estaba asignado a otro camión, se libera automáticamente de ese otro
+camión.
+
+| Método | Ruta                                          | Rol requerido        |
+|--------|------------------------------------------------|-----------------------|
+| POST   | `/api/camiones/{camionId}/conductores/{conductorId}` | ADMIN o SUPERVISOR |
+| DELETE | `/api/camiones/{camionId}/conductores`          | ADMIN o SUPERVISOR    |
+
+La respuesta de `GET`/`POST`/`PUT` de un camión incluye `conductorId` y `conductorNombre`
+(`null` si no tiene conductor asociado).
+
+```bash
+curl -u supervisor:supervisor123 -X POST http://localhost:8080/api/camiones/1/conductores/2
+curl -u supervisor:supervisor123 -X DELETE http://localhost:8080/api/camiones/1/conductores
+```
+
+## Tests
+
+```bash
+mvn test
+```
+
+Los tests de integración usan una base de datos H2 en memoria (configurada en
+`src/test/resources/application.properties`), por lo que no requieren PostgreSQL corriendo.
 
 ## Estructura del proyecto
 

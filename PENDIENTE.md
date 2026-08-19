@@ -1,38 +1,37 @@
 # Pendiente por implementar
 
 Ya está listo: seguridad (HTTP Basic, sin endpoints públicos), usuarios/roles (ADMIN y SUPERVISOR)
-con seed inicial, y el CRUD completo de Camiones y Conductores (solo ADMIN puede crear/editar/eliminar,
-cualquier usuario autenticado puede consultar).
+con seed inicial, el CRUD completo de Camiones y Conductores (solo ADMIN puede crear/editar/eliminar,
+cualquier usuario autenticado puede consultar), y el módulo de asociación Conductor ↔ Camión.
 
-Falta lo siguiente:
+## 1. Módulo de asociación Conductor ↔ Camión — HECHO
 
-## 1. Módulo de asociación Conductor ↔ Camión (lo más importante)
+Implementado con la opción simple: campo `conductor_id` en `camiones` (relación `@ManyToOne` a
+`Conductor`), es decir, un conductor solo puede estar asociado a un camión a la vez. Si se asocia
+un conductor que ya tenía otro camión asignado, se libera automáticamente de ese otro camión
+(`CamionService.asociarConductor`).
 
-Requisito original: "el supervisor solo podrá asociar conductores a camiones" (y el ADMIN también
-debería poder hacerlo).
+- `POST /api/camiones/{camionId}/conductores/{conductorId}` — asocia (`hasAnyRole('ADMIN','SUPERVISOR')`).
+- `DELETE /api/camiones/{camionId}/conductores` — desasocia (mismos roles).
+- `GET`/`POST`/`PUT` de camión devuelven `conductorId`/`conductorNombre` (null si no tiene).
+- Valida existencia de camión y conductor reusando `ResourceNotFoundException`.
 
-Sugerencia de diseño (a definir por quien lo implemente):
+No se implementó histórico de asociaciones (tabla `asociaciones` con fecha) — si se necesita
+trazabilidad de cambios de asignación en el futuro, habría que migrar a esa alternativa.
 
-- Decidir la relación: ¿un conductor asignado a un solo camión a la vez (relación simple con un campo
-  `conductor_id` en `camiones`), o histórico de asociaciones (tabla intermedia `asociaciones` con
-  fecha de asignación)? Para el alcance de esta actividad probablemente basta con la opción simple.
-- Si se opta por tabla intermedia, crear entidad `Asociacion` (`camion`, `conductor`, `fechaAsociacion`)
-  y su repositorio.
-- Endpoint sugerido: `POST /api/camiones/{camionId}/conductores/{conductorId}` (o
-  `POST /api/asociaciones` con body `{camionId, conductorId}`).
-- Seguridad: permitir tanto `ADMIN` como `SUPERVISOR` (`@PreAuthorize("hasAnyRole('ADMIN','SUPERVISOR')")`),
-  a diferencia de los endpoints de creación de camiones/conductores que son solo ADMIN.
-- Validar que el camión y el conductor existan (reusar `ResourceNotFoundException`).
-- Definir si un conductor puede estar asociado a más de un camión a la vez, y manejar ese caso
-  (regla de negocio a confirmar).
-- Endpoint para desasociar / consultar la asociación actual de un camión (opcional pero recomendable).
+## 2. Pruebas — HECHO
 
-## 2. Pruebas
+Tests de integración con MockMvc + H2 en memoria (no requieren PostgreSQL corriendo). Dependencia
+`h2` agregada solo en scope `test`; `src/test/resources/application.properties` sobreescribe el
+datasource para los tests.
 
-- No hay tests todavía. Agregar al menos:
-  - Tests de integración de seguridad (verificar que sin credenciales todo responde 401, que
-    SUPERVISOR recibe 403 al intentar crear un camión, etc.).
-  - Tests del módulo de asociación una vez implementado.
+- `SecurityIntegrationTest`: sin credenciales → 401, credenciales inválidas → 401, SUPERVISOR → 403
+  al crear camión/conductor, ADMIN → 201 al crear ambos, usuario autenticado puede listar.
+- `AsociacionConductorCamionIntegrationTest`: asociar (ADMIN/SUPERVISOR), 404 si camión o conductor
+  no existen, reasociar a otro camión libera al primero, desasociar deja `conductorId` en null,
+  sin credenciales → 401.
+
+Ejecutar con `mvn test`.
 
 ## 3. Detalles menores
 

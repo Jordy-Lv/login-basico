@@ -24,4 +24,8 @@ public class Camion {
     @Column(name = "tipo_vehiculo", nullable = false)
     private String tipoVehiculo;
 
+    @ManyToOne
+    @JoinColumn(name = "conductor_id")
+    private Conductor conductor;
+
 }

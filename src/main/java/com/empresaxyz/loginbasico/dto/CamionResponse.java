@@ -11,8 +11,12 @@ public class CamionResponse {
     private Long id;
     private String placa;
     private String tipoVehiculo;
+    private Long conductorId;
+    private String conductorNombre;
 
     public static CamionResponse desde(Camion camion) {
-        return new CamionResponse(camion.getId(), camion.getPlaca(), camion.getTipoVehiculo());
+        Long conductorId = camion.getConductor() != null ? camion.getConductor().getId() : null;
+        String conductorNombre = camion.getConductor() != null ? camion.getConductor().getNombre() : null;
+        return new CamionResponse(camion.getId(), camion.getPlaca(), camion.getTipoVehiculo(), conductorId, conductorNombre);
     }
 }

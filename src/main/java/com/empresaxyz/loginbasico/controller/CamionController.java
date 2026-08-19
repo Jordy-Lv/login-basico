@@ -49,4 +49,16 @@ public class CamionController {
         camionService.eliminar(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{camionId}/conductores/{conductorId}")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPERVISOR')")
+    public CamionResponse asociarConductor(@PathVariable Long camionId, @PathVariable Long conductorId) {
+        return CamionResponse.desde(camionService.asociarConductor(camionId, conductorId));
+    }
+
+    @DeleteMapping("/{camionId}/conductores")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPERVISOR')")
+    public CamionResponse desasociarConductor(@PathVariable Long camionId) {
+        return CamionResponse.desde(camionService.desasociarConductor(camionId));
+    }
 }
