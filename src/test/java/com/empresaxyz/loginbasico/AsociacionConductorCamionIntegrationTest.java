@@ -9,10 +9,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static com.empresaxyz.loginbasico.TokenTestHelper.bearer;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.hamcrest.Matchers.nullValue;
@@ -57,7 +58,7 @@ class AsociacionConductorCamionIntegrationTest {
     }
 
     @Test
-    void sinCredenciales_asociarResponde401() throws Exception {
+    void sinToken_asociarResponde401() throws Exception {
         mockMvc.perform(post("/api/camiones/" + camion1Id + "/conductores/" + conductorId))
                 .andExpect(status().isUnauthorized());
     }
@@ -65,7 +66,7 @@ class AsociacionConductorCamionIntegrationTest {
     @Test
     void supervisor_puedeAsociarConductorACamion() throws Exception {
         mockMvc.perform(post("/api/camiones/" + camion1Id + "/conductores/" + conductorId)
-                        .with(httpBasic("supervisor", "supervisor123")))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(mockMvc, "supervisor", "supervisor123")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.conductorId").value(conductorId))
                 .andExpect(jsonPath("$.conductorNombre").value("Juan Perez"));
@@ -74,7 +75,7 @@ class AsociacionConductorCamionIntegrationTest {
     @Test
     void admin_puedeAsociarConductorACamion() throws Exception {
         mockMvc.perform(post("/api/camiones/" + camion1Id + "/conductores/" + conductorId)
-                        .with(httpBasic("admin", "admin123")))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(mockMvc, "admin", "admin123")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.conductorId").value(conductorId));
     }
@@ -82,25 +83,25 @@ class AsociacionConductorCamionIntegrationTest {
     @Test
     void asociarACamionInexistente_responde404() throws Exception {
         mockMvc.perform(post("/api/camiones/99999/conductores/" + conductorId)
-                        .with(httpBasic("admin", "admin123")))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(mockMvc, "admin", "admin123")))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void asociarConductorInexistente_responde404() throws Exception {
         mockMvc.perform(post("/api/camiones/" + camion1Id + "/conductores/99999")
-                        .with(httpBasic("admin", "admin123")))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(mockMvc, "admin", "admin123")))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void reasociarConductorAOtroCamion_loLiberaDelPrimero() throws Exception {
         mockMvc.perform(post("/api/camiones/" + camion1Id + "/conductores/" + conductorId)
-                        .with(httpBasic("admin", "admin123")))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(mockMvc, "admin", "admin123")))
                 .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/camiones/" + camion2Id + "/conductores/" + conductorId)
-                        .with(httpBasic("admin", "admin123")))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(mockMvc, "admin", "admin123")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.conductorId").value(conductorId));
 
@@ -111,11 +112,11 @@ class AsociacionConductorCamionIntegrationTest {
     @Test
     void desasociarConductor_dejaCamionSinConductor() throws Exception {
         mockMvc.perform(post("/api/camiones/" + camion1Id + "/conductores/" + conductorId)
-                        .with(httpBasic("supervisor", "supervisor123")))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(mockMvc, "supervisor", "supervisor123")))
                 .andExpect(status().isOk());
 
         mockMvc.perform(delete("/api/camiones/" + camion1Id + "/conductores")
-                        .with(httpBasic("supervisor", "supervisor123")))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(mockMvc, "supervisor", "supervisor123")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.conductorId").value(nullValue()));
     }

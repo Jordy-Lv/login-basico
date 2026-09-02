@@ -4,13 +4,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static com.empresaxyz.loginbasico.TokenTestHelper.bearer;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -22,27 +24,46 @@ class SecurityIntegrationTest {
     private MockMvc mockMvc;
 
     @Test
-    void sinCredenciales_todoResponde401() throws Exception {
+    void sinToken_todoResponde401() throws Exception {
         mockMvc.perform(get("/api/camiones")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/conductores")).andExpect(status().isUnauthorized());
     }
 
     @Test
-    void credencialesInvalidas_responde401() throws Exception {
-        mockMvc.perform(get("/api/camiones").with(httpBasic("admin", "password-incorrecto")))
+    void loginConCredencialesValidas_devuelveToken() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"admin123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.tipo").value("Bearer"));
+    }
+
+    @Test
+    void loginConCredencialesInvalidas_responde401() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"password-incorrecto\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void tokenMalFormado_responde401() throws Exception {
+        mockMvc.perform(get("/api/camiones").header(HttpHeaders.AUTHORIZATION, "Bearer abc.def.ghi"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void usuarioAutenticado_puedeConsultarCamiones() throws Exception {
-        mockMvc.perform(get("/api/camiones").with(httpBasic("supervisor", "supervisor123")))
+        mockMvc.perform(get("/api/camiones")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(mockMvc, "supervisor", "supervisor123")))
                 .andExpect(status().isOk());
     }
 
     @Test
     void supervisor_recibe403AlCrearCamion() throws Exception {
         mockMvc.perform(post("/api/camiones")
-                        .with(httpBasic("supervisor", "supervisor123"))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(mockMvc, "supervisor", "supervisor123"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"placa\":\"XYZ111\",\"tipoVehiculo\":\"Furgon\"}"))
                 .andExpect(status().isForbidden());
@@ -51,7 +72,7 @@ class SecurityIntegrationTest {
     @Test
     void admin_puedeCrearCamion() throws Exception {
         mockMvc.perform(post("/api/camiones")
-                        .with(httpBasic("admin", "admin123"))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(mockMvc, "admin", "admin123"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"placa\":\"XYZ222\",\"tipoVehiculo\":\"Furgon\"}"))
                 .andExpect(status().isCreated());
@@ -60,7 +81,7 @@ class SecurityIntegrationTest {
     @Test
     void admin_puedeCrearConductor() throws Exception {
         mockMvc.perform(post("/api/conductores")
-                        .with(httpBasic("admin", "admin123"))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(mockMvc, "admin", "admin123"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nombre\":\"Juan Perez\",\"documento\":\"999888777\",\"licencia\":\"C2-111\"}"))
                 .andExpect(status().isCreated());
@@ -69,7 +90,7 @@ class SecurityIntegrationTest {
     @Test
     void supervisor_recibe403AlCrearConductor() throws Exception {
         mockMvc.perform(post("/api/conductores")
-                        .with(httpBasic("supervisor", "supervisor123"))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(mockMvc, "supervisor", "supervisor123"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nombre\":\"Juan Perez\",\"documento\":\"999888666\",\"licencia\":\"C2-112\"}"))
                 .andExpect(status().isForbidden());
